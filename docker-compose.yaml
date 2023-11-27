@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: marketing_bot_db
+    volumes:
+      - ./fastapi_app/data/db:/var/lib/postgresql/data
+    env_file:
+      - .env-non-dev
+
+  app:
+    build:
+      context: .
+    env_file:
+      - .env-non-dev
+    container_name: marketing_bot_app
+    command: [ "/fastapi_app/commands.sh" ]
+    ports:
+      - 9999:8000
+    depends_on:
+      - db
+    restart: always
