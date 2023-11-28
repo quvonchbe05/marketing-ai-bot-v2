@@ -1,15 +1,16 @@
-FROM python:3.11
+FROM python:3.9
 
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir /fastapi_app
+RUN mkdir /marketing_bot
 
-WORKDIR /fastapi_app
+WORKDIR /marketing_bot
 
 COPY requirements.txt .
 
+RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
 COPY . .
