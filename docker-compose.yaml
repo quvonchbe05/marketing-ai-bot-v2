@@ -10,6 +10,7 @@ services:
       - .env-non-dev
 
   app:
+    restart: always
     build:
       context: .
     env_file:
@@ -20,4 +21,3 @@ services:
       - 9999:8000
     depends_on:
       - db
-    restart: always
