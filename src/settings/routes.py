@@ -15,11 +15,7 @@ async def view():
     async with async_session_maker() as session:
         response = await session.scalar(select(BotConfigModel))
 
-    return {
-        'prompt': response.prompt,
-        'model': response.model,
-        'temperature': response.temperature,
-    }
+    return response
 
 
 @router.put('/edit')
