@@ -21,9 +21,15 @@ async def view():
 @router.put('/edit')
 async def edit(settings: SettingsSchema):
     async with async_session_maker() as session:
-        await session.execute(
-            update(BotConfigModel).values(**settings.dict())
-        )
+        config = await session.scalar(select(BotConfigModel))
+        if config:
+            await session.execute(
+                update(BotConfigModel).values(**settings.dict())
+            )
+        else:
+            await session.execute(
+                insert(BotConfigModel).values(**settings.dict())
+            )
         await session.commit()
 
     return {
