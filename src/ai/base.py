@@ -57,33 +57,34 @@ class Base:
         async with async_session_maker() as session:
             history = await session.scalar(
                 select(ChatHistoryModel).where(
-                    ChatHistoryModel.user == str(user)
+                    ChatHistoryModel.user_id == str(user)
                 )
             )
-            print(history)
-            history = history.content
+            if history:
+                history = history.content
+            else:
+                history = []
 
         return history
 
     @staticmethod
     async def create_or_update_history(user, content):
-        uuid = str(uuid4())
         async with async_session_maker() as session:
             user_db = await session.scalar(
                 select(ChatHistoryModel).where(
-                    ChatHistoryModel.user == str(user)
+                    ChatHistoryModel.user_id == str(user)
                 )
             )
             if user_db:
                 await session.execute(
-                    update(ChatHistoryModel).values(content=content).where(ChatHistoryModel.user == str(user))
+                    update(ChatHistoryModel).values(content=content).where(ChatHistoryModel.user_id == str(user))
                 )
                 response_id = user
             else:
                 await session.execute(
-                    insert(ChatHistoryModel).values(user=uuid, content=content)
+                    insert(ChatHistoryModel).values(user_id=user, content=content)
                 )
-                response_id = uuid
+                response_id = user
 
             await session.commit()
         return response_id
@@ -120,7 +121,7 @@ class Base:
             )
             for obj in converted_history:
                 memory.buffer.append(obj)
-            print('hi')
+
             return memory
 
         return memory
@@ -159,6 +160,5 @@ class Base:
         res = agent.invoke({"input": message})
         user = await self.create_or_update_history(self.user, self.convert_conversation_to_json((res['chat_history'])))
         return {
-            'user': user,
-            'chat': res
+            'answer': res['output']
         }
