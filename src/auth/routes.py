@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from src.db.models import UserModel
 from sqlalchemy import select
 from src.db.database import async_session_maker
