@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 from src.config import OPENAI_API_KEY
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -13,6 +11,8 @@ from langchain.tools import format_tool_to_openai_function
 from src.db.database import async_session_maker
 from src.db.models import ChatHistoryModel
 from sqlalchemy import select, insert, update
+import asyncio
+from datetime import datetime
 
 
 class Base:
@@ -37,19 +37,27 @@ class Base:
         serialized = []
         for msg in history:
             if isinstance(msg, HumanMessage):
-                serialized.append({"HumanMessage": msg.content})
+                serialized.append({
+                    "role": "HumanMessage",
+                    "content": msg.content,
+                    'date': datetime.now().isoformat()
+                })
             elif isinstance(msg, AIMessage):
-                serialized.append({"AIMessage": msg.content})
+                serialized.append({
+                    "role": "AIMessage",
+                    "content": msg.content,
+                    'date': datetime.now().isoformat()
+                })
         return serialized
 
     @staticmethod
     def convert_json_to_memory(data):
         serialized = []
         for msg in data:
-            if msg.get("HumanMessage"):
-                serialized.append(HumanMessage(content=msg["HumanMessage"]))
-            elif msg.get("AIMessage"):
-                serialized.append(AIMessage(content=msg["AIMessage"]))
+            if msg['role'] == "HumanMessage":
+                serialized.append(HumanMessage(content=msg["content"]))
+            elif msg['role'] == "AIMessage":
+                serialized.append(AIMessage(content=msg["content"]))
         return serialized
 
     @staticmethod

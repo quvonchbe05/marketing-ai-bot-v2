@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends
-from src.chat.schemas import ChatSchema
+
 from src.ai.marketing import MarketingAIBot
 from src.auth.dependencies import access_route
+from src.chat.schemas import ChatSchema
 
 router = APIRouter(
     tags=["Chat"],

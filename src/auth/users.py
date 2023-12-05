@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
-from src.db.models import UserModel
+from src.db.models import UserModel, ChatHistoryModel
 from sqlalchemy import select, insert, update, delete
 from src.db.database import async_session_maker
-from src.auth.schemas import UserSchema, PasswordSchema
+from src.auth.schemas import UserSchema, PasswordSchema, UserCreateSchema
 from src.auth.security import encode_password
 from pydantic import UUID4
 
@@ -48,7 +48,7 @@ async def generate_password(data: PasswordSchema):
 
 @router.post("/create")
 async def user_create(
-    new_user: UserSchema,
+    new_user: UserCreateSchema,
 ):
     """Endpoint for create new user"""
     async with async_session_maker() as session:
@@ -96,6 +96,8 @@ async def user_edit(
 async def user_edit(user_id: UUID4):
     """Endpoint for delete user"""
     async with async_session_maker() as session:
+        history_stmt = delete(ChatHistoryModel).where(ChatHistoryModel.user_id==user_id)
+        await session.execute(history_stmt)
         stmt = delete(UserModel).where(UserModel.id == user_id)
         await session.execute(stmt)
         await session.commit()

@@ -8,6 +8,7 @@ from src.notion.routes import router as notion_router
 from src.clear.routes import router as clear_router
 from src.auth.routes import router as auth_router
 from src.auth.users import router as users_router
+from src.history.routes import router as history_router
 
 from src.auth.dependencies import access_route
 
@@ -21,6 +22,7 @@ app = FastAPI(
 
 app.include_router(chat_routes)
 app.include_router(settings_routes)
+app.include_router(history_router)
 app.include_router(files_routes)
 app.include_router(notion_router)
 app.include_router(clear_router)
@@ -43,14 +45,3 @@ app.add_middleware(
     ],
 )
 
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(
-        "main:app",
-        port=8000,
-        host="0.0.0.0",
-        reload=True,
-    )

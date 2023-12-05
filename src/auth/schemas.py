@@ -10,7 +10,12 @@ class UserSchema(BaseModel):
     name: str = Field(..., max_length=255)
     username: str = Field(..., max_length=155)
     is_admin: bool = None
-
+    
+    
+class UserCreateSchema(BaseModel):
+    name: str = Field(..., max_length=255)
+    username: str = Field(..., max_length=155)
+    
 
 class PasswordSchema(BaseModel):
     user_id: UUID4
