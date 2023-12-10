@@ -50,7 +50,7 @@ async def create_or_update_history(user, content):
         await session.commit()
 
 
-@router.websocket("/chat")
+@router.websocket("/websocket/chat")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
