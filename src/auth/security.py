@@ -2,6 +2,8 @@ from passlib.hash import pbkdf2_sha256
 import jwt
 from datetime import datetime, timedelta
 from src.config import SECRET_KEY
+from jwt.exceptions import PyJWTError
+from fastapi import HTTPException
 
 
 def generate_token(obj):
@@ -24,3 +26,20 @@ def encode_password(password):
 def decode_password(password, hashed_password):
     response = pbkdf2_sha256.verify(password, hashed_password)
     return response
+
+
+def decode_jwt_token(token):
+    try:
+        payload = jwt.decode(
+            token,
+            key=SECRET_KEY,
+            options={
+                "verify_signature": False,
+                "verify_aud": False,
+                "verify_iss": False,
+            },
+        )
+        print("payload => ", payload)
+        return payload
+    except PyJWTError as e:
+        raise HTTPException(status_code=401, detail=str(e))
