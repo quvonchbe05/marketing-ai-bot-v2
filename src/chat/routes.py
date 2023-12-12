@@ -50,12 +50,12 @@ async def create_or_update_history(user, content):
         await session.commit()
 
 
-@router.websocket("/websocket/chat")
-async def websocket_endpoint(websocket: WebSocket):
+@router.websocket("/websocket/chat/{token}")
+async def websocket_endpoint(websocket: WebSocket, token: str):
     await websocket.accept()
 
-    if websocket.headers.get("Authorization"):
-        user = decode_jwt_token(websocket.headers.get("Authorization").split(" ")[1])
+    if token:
+        user = decode_jwt_token(token)
     else:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
