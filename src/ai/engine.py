@@ -1,3 +1,7 @@
+import openai
+import asyncio
+import datetime
+
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.memory import ConversationBufferMemory
@@ -5,19 +9,23 @@ from langchain.tools import format_tool_to_openai_function
 from langchain.agents.format_scratchpad import format_to_openai_functions
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from langchain.agents import AgentExecutor
-from src.ai.prompt import prompt_text
-from src.ai.tools import search_from_documents
 from langchain.schema import AIMessage, HumanMessage
-from src.config import OPENAI_API_KEY
-from datetime import datetime
+
+from src.ai.data.params import prompt as prompt_text, model, temperature
+from src.ai.tools import search_from_documents
+from src.ai.utils import format_text_to_html
+
+from src.config import OPENAI_API_KEY, DEBUG
 
 
-class Base:
+class BaseAIChatBot:
+    """Base class for LLM-powered chat bots"""
+
     def __init__(
         self,
-        openai_api_key: str = None,
-        model: str = "gpt-3.5-turbo",
-        temperature: float = 0.7,
+        openai_api_key: str,
+        model: str,
+        temperature: float,
         tools: list = [],
         prompt: str = None,
     ) -> None:
@@ -34,10 +42,15 @@ class Base:
             ]
         )
         self.memory = ConversationBufferMemory(
-            memory_key="chat_history", return_messages=True
+            memory_key="chat_history",
+            return_messages=True,
         )
+        self.memory_with_date = []
 
-    async def create_tools(self):
+    async def create_agent(self) -> AgentExecutor:
+        """
+        Create agent to execute LLM operations
+        """
         llm = ChatOpenAI(
             openai_api_key=self.openai_api_key,
             model=self.model,
@@ -46,9 +59,6 @@ class Base:
         llm_with_tools = llm.bind(
             functions=[format_tool_to_openai_function(t) for t in self.tools]
         )
-        return llm_with_tools
-
-    async def create_agent(self):
         agent_schema = (
             {
                 "input": lambda x: x["input"],
@@ -58,25 +68,23 @@ class Base:
                 "chat_history": lambda x: x["chat_history"],
             }
             | self.prompt
-            | await self.create_tools()
+            | llm_with_tools
             | OpenAIFunctionsAgentOutputParser()
         )
-
-        agent_executor = AgentExecutor(
+        return AgentExecutor(
             agent=agent_schema,
             tools=self.tools,
             memory=self.memory,
-            verbose=True,
+            verbose=DEBUG,
+            handle_parsing_errors=True,
         )
 
-        return agent_executor
-
     async def get_history(self):
-        return self.memory.buffer
-    
+        return self.memory_with_date
+
     async def set_history(self, history):
-        for obj in history:
-            self.memory.buffer.append(obj)
+        self.memory.buffer.extend(self.convert_json_to_memory(history))
+        self.memory_with_date = history
 
     @staticmethod
     def convert_conversation_to_json(history):
@@ -87,7 +95,7 @@ class Base:
                     {
                         "role": "HumanMessage",
                         "content": msg.content,
-                        "date": datetime.now().isoformat(),
+                        "date": datetime.datetime.now().isoformat(),
                     }
                 )
             elif isinstance(msg, AIMessage):
@@ -95,7 +103,7 @@ class Base:
                     {
                         "role": "AIMessage",
                         "content": msg.content,
-                        "date": datetime.now().isoformat(),
+                        "date": datetime.datetime.now().isoformat(),
                     }
                 )
         return serialized
@@ -110,15 +118,57 @@ class Base:
                 serialized.append(AIMessage(content=msg["content"]))
         return serialized
 
-    async def send_message(self, message):
+    async def agent_answer_loop(self, message: str) -> str:
         agent = await self.create_agent()
-        response = agent.invoke({"input": message})
 
-        return response["output"]
+        self.memory_with_date.append(
+            {
+                "role": "HumanMessage",
+                "content": message,
+                "date": datetime.datetime.now().isoformat(),
+            }
+        )
+
+        try:
+            response = agent.invoke({"input": message})
+        except asyncio.TimeoutError:
+            return {
+                "message": "I took too long to think, let's try again.",
+                "status": 503,
+            }
+        except openai.error.APIError:
+            return {
+                "message": "I'm overloaded right now, please try again later.",
+                "status": 507,
+            }
+        except openai.error.InvalidRequestError:
+            return {
+                "message": "My memory is overloaded, please start a new conversation.",
+                "status": 509,
+            }
+
+        response = format_text_to_html(response["output"])
+
+        self.memory_with_date.append(
+            {
+                "role": "AIMessage",
+                "content": response,
+                "date": datetime.datetime.now().isoformat(),
+            }
+        )
+
+        return {"message": response, "status": 200}
+
+    async def send_message(self, message: str) -> str:
+        """
+        Send bot answer as text response
+        """
+        response = await self.agent_answer_loop(message=message)
+        return response
 
 
-class MarketingAIBot(Base):
+class MarketingAIBot(BaseAIChatBot):
     def __init__(self):
         super().__init__(
-            OPENAI_API_KEY, "gpt-3.5-turbo", 0.7, [search_from_documents], prompt_text
+            OPENAI_API_KEY, model, temperature, [search_from_documents], prompt_text
         )

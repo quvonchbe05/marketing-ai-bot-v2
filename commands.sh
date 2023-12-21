@@ -23,6 +23,7 @@ until postgres_ready; do
 done
 >&2 echo 'PostgreSQL is available'
 
+# psql -U postgres -c "CREATE EXTENSION vector;" || true
 
 alembic upgrade head
 

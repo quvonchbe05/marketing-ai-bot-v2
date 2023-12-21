@@ -35,4 +35,4 @@ def notion_validator(obj):
     if res.status_code == 200:
         return obj
     else:
-        raise HTTPException(status_code=404, detail="Notion integration not found!")
+        raise HTTPException(status_code=404, detail=f"{obj.title} not found!")

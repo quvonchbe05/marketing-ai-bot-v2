@@ -1,75 +1,54 @@
 from fastapi import APIRouter
-from src.db.database import async_session_maker
+from src.db.database import async_session_maker, vectorestore
 from src.db.models import NotionModel
 from src.notion.schemas import NotionSchema
-from sqlalchemy import insert, select, update, delete
+from sqlalchemy import insert, select, update, delete, text
 from pydantic import UUID4
 from src.utils.validators import notion_validator
-
+import json
+import os
+from typing import List
+from src.ai.utils import ready_documetns
 
 router = APIRouter(prefix="/api/notion", tags=["Notion integration"])
 
 
 @router.get("/list")
 async def notion_list():
-    async with async_session_maker() as session:
-        stmt = select(NotionModel)
-        response = await session.scalars(stmt)
-    return response.all()
+    with open('src/uploads/notions.json', 'r') as f:
+        data = json.load(f)
+        
+    return data
 
-
-@router.get("/{id}")
-async def notion_detail(id: UUID4):
-    async with async_session_maker() as session:
-        stmt = select(NotionModel).where(NotionModel.id == id)
-        response = await session.scalar(stmt)
-    return response
-
-
-@router.post("/create")
+@router.post("/edit")
 async def notion_create(
-    notion: NotionSchema,
+    notions: list[NotionSchema],
 ):
-    validate_notion = notion_validator(notion)
+    for notion in notions:
+        notion_validator(notion)
+
+    with open("src/uploads/notions.json", "w") as f:
+        json.dump(notions, f, indent=4)
+        
     async with async_session_maker() as session:
-        stmt = insert(NotionModel).values(
-            title=validate_notion.title,
-            token=validate_notion.token,
-            database_id=validate_notion.database_id,
-        )
-        await session.execute(stmt)
+        delete_query = text("DELETE FROM langchain_pg_embedding")
+        await session.execute(delete_query)
         await session.commit()
-    return {"message": "success"}
-
-
-@router.put("/edit/{id}")
-async def notion_edit(notion: NotionSchema, id: UUID4):
-    async with async_session_maker() as session:
-        stmt = (
-            update(NotionModel)
-            .values(
-                title=notion.title, token=notion.token, database_id=notion.database_id
-            )
-            .where(NotionModel.id == id)
-        )
-        await session.execute(stmt)
-        await session.commit()
-    return {"message": "success"}
-
-
-@router.delete("/delete/{id}")
-async def notion_delete(id: UUID4):
-    async with async_session_maker() as session:
-        stmt = delete(NotionModel).where(NotionModel.id == id)
-        await session.execute(stmt)
-        await session.commit()
+            
+    vectorestore.add_documents(ready_documetns)
+        
     return {"message": "success"}
 
 
 @router.delete("/delete/all")
 async def notion_all_delete():
+    with open("src/uploads/notions.json", "w") as f:
+        json.dump([], f, indent=4)
+        
     async with async_session_maker() as session:
-        stmt = delete(NotionModel)
-        await session.execute(stmt)
+        delete_query = text("DELETE FROM langchain_pg_embedding")
+        await session.execute(delete_query)
         await session.commit()
+            
+    vectorestore.add_documents(ready_documetns)
     return {"message": "success"}

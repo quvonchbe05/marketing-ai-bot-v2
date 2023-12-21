@@ -1,11 +1,12 @@
 from fastapi import APIRouter, UploadFile, HTTPException
-from src.db.database import async_session_maker
+from src.db.database import async_session_maker, vectorestore
 from src.db.models import FilesModel
-from sqlalchemy import insert, select, delete
+from sqlalchemy import insert, select, delete, text
 import os
 from typing import List
 from pydantic import UUID4
 from src.utils.validators import file_upload_validator
+from src.ai.utils import ready_documetns
 
 router = APIRouter(prefix="/api/files", tags=["File system"])
 
@@ -20,12 +21,21 @@ async def document_upload(files: List[UploadFile]):
 
             with open(file_path, "wb") as f:
                 f.write(file.file.read())
-
-            stmt = insert(FilesModel).values(file_path=file_path)
-            await session.execute(stmt)
-            await session.commit()
+                
+            stmt = select(FilesModel).where(FilesModel.file_path == file_path)
+            document = await session.scalar(stmt)
+            
+            if not document:
+                stmt = insert(FilesModel).values(file_path=file_path)
+                await session.execute(stmt)
 
             file_paths.append(file_path)
+            
+        delete_query = text("DELETE FROM langchain_pg_embedding")
+        await session.execute(delete_query)
+        await session.commit()
+            
+    vectorestore.add_documents(ready_documetns)
 
     return {"files": file_paths}
 
@@ -51,14 +61,19 @@ async def document_delete(
 
             delete_stmt = delete(FilesModel).where(FilesModel.id == id)
             await session.execute(delete_stmt)
+            
+            delete_query = text("DELETE FROM langchain_pg_embedding")
+            await session.execute(delete_query)
             await session.commit()
+            
+        vectorestore.add_documents(ready_documetns)
 
         return {"message": "success"}
     except:
         raise HTTPException(status_code=404, detail="File not found!")
 
 
-@router.delete("/delete/all")
+@router.delete("/delete")
 async def document_all_delete():
     async with async_session_maker() as session:
         stmt = select(FilesModel)
@@ -71,6 +86,11 @@ async def document_all_delete():
 
         delete_stmt = delete(FilesModel)
         await session.execute(delete_stmt)
+        
+        delete_query = text("DELETE FROM langchain_pg_embedding")
+        await session.execute(delete_query)
         await session.commit()
 
     return {"message": "success"}
+
+
