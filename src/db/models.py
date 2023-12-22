@@ -28,6 +28,7 @@ class FilesModel(Base, BaseModel):
     __tablename__ = "files"
 
     file_path: str = Column(Text, nullable=True)
+    name: str = Column(String, nullable=True)
 
 
 class NotionModel(Base, BaseModel):

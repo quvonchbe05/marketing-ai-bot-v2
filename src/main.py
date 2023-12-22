@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 # Routers
 from src.chat.routes import router as chat_routes
 from src.settings.routes import router as settings_routes
@@ -28,6 +29,8 @@ app.include_router(notion_router)
 app.include_router(clear_router)
 app.include_router(users_router)
 app.include_router(auth_router)
+
+app.mount("/src/uploads/", StaticFiles(directory="src/uploads/"), name="static")
 
 origins = ["*"]
 

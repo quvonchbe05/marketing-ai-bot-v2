@@ -26,7 +26,7 @@ async def document_upload(files: List[UploadFile]):
             document = await session.scalar(stmt)
             
             if not document:
-                stmt = insert(FilesModel).values(file_path=file_path)
+                stmt = insert(FilesModel).values(file_path=file_path, name=file.filename)
                 await session.execute(stmt)
 
             file_paths.append(file_path)

@@ -3,6 +3,7 @@ from src.db.database import async_session_maker
 from src.db.models import BotConfigModel
 from src.settings.schemas import SettingsSchema
 from sqlalchemy import insert, select, update
+from src.ai.data.params import prompt, temperature, model
 
 router = APIRouter(
     tags=["Bot settings"],
@@ -12,10 +13,11 @@ router = APIRouter(
 
 @router.get('')
 async def view():
-    async with async_session_maker() as session:
-        response = await session.scalar(select(BotConfigModel))
-
-    return response
+    return {
+        "model": model,
+        "temperature": temperature,
+        "prompt": prompt
+    }
 
 
 @router.put('/edit')
